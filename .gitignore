@@ -2,4 +2,5 @@
 .ipynb_checkpoints
 *__pycache__*
 *.DS_Store
+saves
 datasets/cifar-10-batches-py

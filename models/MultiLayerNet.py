@@ -1,5 +1,6 @@
 import numpy as np
 import pickle
+imoprt os
 
 from models.layers import Linear, ReLU, DropOut, BatchNorm
 from models.losses import Softmax, SVM
@@ -123,6 +124,9 @@ class MultiLayerNet:
                          'dim_output': self.dim_output,
                          'hyperparams': self.hyperparams}}
         
+        if not os.path.exists(file_name):
+            os.makedirs(path) 
+            
         pickle.dump(data, open(file_name, 'wb'))
         
     
