@@ -1,0 +1,6 @@
+.idea
+.ipynb_checkpoints
+*__pycache__*
+*.DS_Store
+datasets/cifar-10-batches-py
+saves/*
