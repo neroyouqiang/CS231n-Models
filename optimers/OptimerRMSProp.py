@@ -4,11 +4,11 @@ from optimers.OptimerSGD import OptimerSGD
 
 class OptimerRMSProp(OptimerSGD):
     def __init__(self, hyperparams={}, 
-                 print_every=100, silence=False,
+                 print_every=100, record_every=10, silence=False,
                  check_val_acc=True, check_train_acc=True):
         
-        self._base_init(hyperparams, print_every, silence, 
-                        check_val_acc, check_train_acc)
+        self._base_init(hyperparams, print_every, record_every, 
+                        silence, check_val_acc, check_train_acc)
         
         hyperparams.setdefault('scale_decay', 0.99)
         hyperparams.setdefault('epsilon', 1e-8)

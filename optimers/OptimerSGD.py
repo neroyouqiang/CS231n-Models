@@ -1,13 +1,13 @@
-from utils import check_accuracy
+from utils import check_accuracy, show_pc_memory
 
                 
 class OptimerSGD:
     def __init__(self, hyperparams={}, 
-                 print_every=100, silence=False,
+                 print_every=100, record_every=10, silence=False,
                  check_val_acc=True, check_train_acc=True):
         
-        self._base_init(hyperparams, print_every, silence, 
-                        check_val_acc, check_train_acc)
+        self._base_init(hyperparams, print_every, record_every, 
+                        silence, check_val_acc, check_train_acc)
     
         
     def train(self, model, dataloader):
@@ -15,11 +15,12 @@ class OptimerSGD:
         
     
     def _base_init(self, hyperparams={}, 
-                   print_every=100, silence=False,
+                   print_every=100, record_every=10, silence=False,
                    check_val_acc=True, check_train_acc=True):
         
         self.silence = silence
         self.print_every = print_every
+        self.record_every = record_every
         self.check_val_acc = check_val_acc
         self.check_train_acc = check_train_acc
         
@@ -59,7 +60,7 @@ class OptimerSGD:
                                                           layer, key)
             
             # record loss history
-            if i % min(10, self.print_every) == 0:
+            if i % self.record_every == 0:
                 self.loss_history.append(loss)
 #                self.param_trace.append(model.params[0]['W'][0, 0: 2])
             
@@ -75,6 +76,9 @@ class OptimerSGD:
                 if self.check_val_acc:
                     acc_val = check_accuracy(model.predict(dataloader.x_val), dataloader.y_val)
                     self.acc_val_history.append(acc_val)
+                
+#                # show memory
+#                show_pc_memory(style='easy')
                 
             # check accuracy and decay learning rate.
             if i % iter_per_epoch == 0:

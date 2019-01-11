@@ -14,16 +14,19 @@ def check_rel_error(m1, m2):
     return np.max(np.abs((m1 - m2) / (m1 + m2) * 2.))
 
 
-def show_pc_memory():
+def show_pc_memory(style='full'):
     pc_mem = psutil.virtual_memory()
     
     gb_factor = 1024.0 ** 3
     
-    print("total memory: %fGB" % float(pc_mem.total / gb_factor))
-    print("available memory: %fGB" % float(pc_mem.available / gb_factor))
-    print("used memory: %fGB" % float(pc_mem.used / gb_factor))
-    print("percent of used memory: %f" % float(pc_mem.percent))
-    print("free memory: %fGB" % float(pc_mem.free / gb_factor))
+    if style == 'full':
+        print("total memory: %fGB" % float(pc_mem.total / gb_factor))
+        print("available memory: %fGB" % float(pc_mem.available / gb_factor))
+        print("used memory: %fGB" % float(pc_mem.used / gb_factor))
+        print("percent of used memory: %f" % float(pc_mem.percent))
+        print("free memory: %fGB" % float(pc_mem.free / gb_factor))
+    else:
+        print("free memory: %fGB / %fGB" % (float(pc_mem.free / gb_factor), float(pc_mem.available / gb_factor)))
 
 
 def show_weight_images(w, size, label_names=None):

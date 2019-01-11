@@ -8,55 +8,51 @@ from models.losses import Softmax, SVM
 class MultiLayerConvNet(MultiLayerNet):
     """
     Structure:
-        norm - conv - relu - 2x2 max pool - affine - relu - affine - softmax
+        [batchnorm-relu-conv] x N -> [affine] x M -> [softmax or SVM]
     """
-    def __init__(self, dim_input=None, dim_output=None, hyperparams={}, seed=None):
-        if dim_input:
-            hyperparams.setdefault('reg', 0.)
-            hyperparams.setdefault('init_scale', 1e-4)
-            hyperparams.setdefault('loss_type', 'softmax')
-            
-            self.hyperparams = hyperparams
-            self.dim_input = dim_input
-            self.dim_output = dim_output
-            self.seed = seed
-            
-            self.init()
-            
-            
-    def init(self, params=None):
+    def init(self):
         if self.seed: np.random.seed(self.seed)
         
-        self.reg = self.hyperparams['reg']
-        self.loss_type = self.hyperparams['loss_type']
-        self.init_scale = self.hyperparams['init_scale']
+        self.hyperparams.setdefault('loss_type', 'softmax')
+        self.hyperparams.setdefault('nums_conv', [32])
+        self.hyperparams.setdefault('nums_hidden', [100])
             
         # init layers
         Ci, Hi, Wi = self.dim_input
-        self.layers = [Spatial_BatchNorm(Ci),
-                       Conv(Ci, 16, 3, 3, S=1, P=1, init_scale=self.init_scale),
-                       ReLU(),
-                       MaxPool(2, 2, S=2),
-                       
-                       Spatial_BatchNorm(16),
-                       Conv(16, 32, 3, 3, S=1, P=1, init_scale=self.init_scale),
-                       ReLU(),
-                       MaxPool(2, 2, S=2),
-                       
-                       Linear(32 * (Hi // 4) * (Wi // 4), 100, init_scale=self.init_scale),
-                       ReLU(),
-                       Linear(100, self.dim_output, init_scale=self.init_scale)]
+        self.layers = []
+        
+        ci = Ci
+        for co in self.hyperparams['nums_conv']:
+            self.layers.append(Spatial_BatchNorm(ci))
+            self.layers.append(Conv(ci, co, 3, 3, S=1, P=1, init_scale=self.init_scale))
+            self.layers.append(ReLU())
+            self.layers.append(MaxPool(2, 2, S=2))
+            ci = co
+        
+        ni = ci * (Hi // 2 ** len(self.hyperparams['nums_conv'])) * (Wi // 2 ** len(self.hyperparams['nums_conv']))
+        for no in self.hyperparams['nums_hidden']:
+            self.layers.append(Linear(ni, no, init_scale=self.init_scale))
+            self.layers.append(ReLU())
+            ni = no
+            
+        self.layers.append(Linear(ni, self.dim_output, init_scale=self.init_scale))
+        
+#        self.layers = [Spatial_BatchNorm(Ci),
+#                       Conv(Ci, 16, 3, 3, S=1, P=1, init_scale=self.init_scale),
+#                       ReLU(),
+#                       MaxPool(2, 2, S=2),
+#                       
+#                       Spatial_BatchNorm(16),
+#                       Conv(16, 32, 3, 3, S=1, P=1, init_scale=self.init_scale),
+#                       ReLU(),
+#                       MaxPool(2, 2, S=2),
+#                       
+#                       Linear(32 * (Hi // 4) * (Wi // 4), 100, init_scale=self.init_scale),
+#                       ReLU(),
+#                       Linear(100, self.dim_output, init_scale=self.init_scale)]
         
         # init loss
-        if self.loss_type == 'softmax':
+        if self.hyperparams['loss_type'] == 'softmax':
             self.loss = Softmax()
-        elif self.loss_type == 'svm':
+        elif self.hyperparams['loss_type'] == 'svm':
             self.loss = SVM()
-        
-        # Init parameters
-        if params is None:
-            self.params = []
-            for layer in self.layers:
-                self.params.append(layer.get_init_param())
-        else:
-            self.params = params
