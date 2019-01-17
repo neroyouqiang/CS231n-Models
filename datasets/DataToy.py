@@ -12,14 +12,17 @@ class DataToy:
         self.x_test = np.random.rand(num_test, 1)
         self.y_test = self._func(self.x_test)
         
+        # normalization and split validation set
         self._norm_train_val(num_train, num_val, norm_dis_mean, norm_div_std)
+        
+        # record test/train/val data numbers
+        self._record_nums()
     
     
     def _norm_train_val(self, num_train, num_val, norm_dis_mean, norm_div_std):
         """
         Split data into training and validating data.
         Nomalization.
-        Record the numbers of different datasets.
         """
         self.x_val = None
         self.y_val = None
@@ -46,9 +49,25 @@ class DataToy:
             self.x_val = self.x_val / self.norm_std
             self.x_test = self.x_test / self.norm_std
             
-        self.num_train = self.x_train.shape[0]
-        self.num_val = self.x_val.shape[0]
-        self.num_test = self.x_test.shape[0]
+    
+    def _record_nums(self):
+        """
+        Record the numbers of different datasets.
+        """
+        if self.x_train is not None:
+            self.num_train = self.x_train.shape[0]
+        else:
+            self.num_train = 0
+            
+        if self.x_val is not None:
+            self.num_val = self.x_val.shape[0]
+        else:
+            self.num_val = 0
+        
+        if self.x_test is not None:
+            self.num_test = self.x_test.shape[0]
+        else:
+            self.num_test = 0
     
         
     def _func(self, x):
@@ -66,6 +85,14 @@ class DataToy:
             np.random.seed(seed)
         idxs = np.random.choice(self.x_train.shape[0], num, replace=False)
         return self.x_train[idxs], self.y_train[idxs]
+    
+    def show_info(self):
+        if self.x_train is not None: print('Training data shape: ', self.x_train.shape)
+        if self.y_train is not None: print('Training labels shape: ', self.y_train.shape)
+        if self.x_val is not None: print('Validating data shape: ', self.x_val.shape)
+        if self.y_val is not None: print('Validating labels shape: ', self.y_val.shape)
+        if self.x_test is not None: print('Testing data shape: ', self.x_test.shape)
+        if self.y_test is not None: print('Testing labels shape: ', self.y_test.shape)
     
     
 if __name__ == '__main__':

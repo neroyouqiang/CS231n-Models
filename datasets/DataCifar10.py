@@ -44,6 +44,9 @@ class DataCifar10(DataToy):
             
         # normalization and split validation set
         self._norm_train_val(num_train, num_val, norm_dis_mean, norm_div_std)
+        
+        # record test/train/val data numbers
+        self._record_nums()
     
     
     def show_by_data(self, x, y=None):
@@ -69,38 +72,40 @@ class DataCifar10(DataToy):
             
         plt.axis('off')
         plt.show()
+        
+        return x, name
             
         
-    def show_by_index(self, index, is_train=True):
-        x = None
-        y = None
-        
-        if is_train:
+    def show_by_index(self, index, data_type='train'):
+        if data_type == 'train':
             x = (self.x_train[index] * self.norm_std + self.norm_mean).astype(np.uint8)
             y = self.y_train[index]
-        else:
+        elif data_type == 'test':
             x = (self.x_test[index] * self.norm_std + self.norm_mean).astype(np.uint8)
             y = self.y_test[index]
+        elif data_type == 'val':
+            x = (self.x_val[index] * self.norm_std + self.norm_mean).astype(np.uint8)
+            y = self.y_val[index]
             
-        self.show_by_data(x, y)
+        return self.show_by_data(x, y)
         
     
     @staticmethod
-    def unpickle(filename):
-        with open(filename, 'rb') as fo:
+    def unpickle(file_name):
+        with open(file_name, 'rb') as fo:
             dict = pickle.load(fo, encoding='latin1')
         return dict
     
     @staticmethod
-    def load_label_names(filename):
-        datadict = DataCifar10.unpickle(filename)
+    def load_label_names(file_name):
+        datadict = DataCifar10.unpickle(file_name)
         names = datadict['label_names']
         return names
         
         
     @staticmethod
-    def load_data_batch(filename):
-        datadict = DataCifar10.unpickle(filename)
+    def load_data_batch(file_name):
+        datadict = DataCifar10.unpickle(file_name)
         x = datadict['data']
         y = datadict['labels']
         x = x.reshape(10000, 3, 32, 32).transpose(0, 2, 3, 1).astype(np.float32)
@@ -108,19 +113,19 @@ class DataCifar10(DataToy):
         return x, y
     
     @staticmethod
-    def load_data(filedir):
+    def load_data(file_dir):
         xs = []
         ys = []
         for i in range(1, 6):
-            x, y = DataCifar10.load_data_batch(os.path.join(filedir, 'data_batch_%d' % i))
+            x, y = DataCifar10.load_data_batch(os.path.join(file_dir, 'data_batch_%d' % i))
             xs.append(x)
             ys.append(y)
         x_train = np.concatenate(xs)
         y_train = np.concatenate(ys)
         
-        x_test, y_test = DataCifar10.load_data_batch(os.path.join(filedir, 'test_batch'))
+        x_test, y_test = DataCifar10.load_data_batch(os.path.join(file_dir, 'test_batch'))
         
-        label_names = DataCifar10.load_label_names(os.path.join(filedir, 'batches.meta'))
+        label_names = DataCifar10.load_label_names(os.path.join(file_dir, 'batches.meta'))
         
         del x, y
         

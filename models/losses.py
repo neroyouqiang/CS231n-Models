@@ -67,3 +67,34 @@ class MSE:
         
         # return
         return loss, dscores
+    
+    
+class SoftmaxForRNN:
+    def backward(self, scores, y, mask=None):
+        # init mask
+        if mask is None: mask = (y != 0)
+        
+        # reshape data
+        N, T, D = scores.shape
+        
+        scores = scores.reshape(N * T, D)
+        y = y.reshape(N * T)
+        mask = mask.reshape(N * T)
+        
+        # calculate loss
+        probs = scores - np.max(scores, axis=1, keepdims=True)
+        probs = np.exp(probs)
+        probs = probs / np.sum(probs, axis=1, keepdims=True)
+        loss = -np.sum(mask * np.log(probs[np.arange(N * T), y] + 1e-10)) / mask.sum()
+        
+        # calculate gradient
+        dscores = probs
+        dscores[np.arange(N * T), y] -= 1
+        dscores = mask[:, None] * dscores
+        dscores = dscores / mask.sum()
+        
+        # reshape result
+        dscores = dscores.reshape(N, T, D)
+            
+        # return
+        return loss, dscores

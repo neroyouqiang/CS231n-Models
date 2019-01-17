@@ -68,8 +68,6 @@ class MultiLayerNet:
     def predict(self, x, mode='test', seed=None):
         if seed: np.random.seed(seed) # seed used to fix the forward
         
-#        self._init_caches(mode=mode)
-        
         # init caches
         self.caches = [{} for _ in range(len(self.layers))]
         
@@ -106,12 +104,6 @@ class MultiLayerNet:
         
         # return 
         return loss
-    
-    
-#    def _init_caches(self, mode):
-#        self.caches = [{} for _ in range(len(self.layers))]
-#        if mode == 'train': 
-#            self.dparams = [{} for _ in range(len(self.layers))]
               
     
     def save(self, file_name):

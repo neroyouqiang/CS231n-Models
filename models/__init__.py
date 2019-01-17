@@ -4,4 +4,6 @@ from models.LinearSVM import LinearSVM
 from models.MultiLayerNet import MultiLayerNet
 from models.ThreeLayerConvNet import ThreeLayerConvNet
 from models.MultiLayerConvNet import MultiLayerConvNet
+from models.RNNCaption import RNNCaption
+from models.LSTMCaption import LSTMCaption
 

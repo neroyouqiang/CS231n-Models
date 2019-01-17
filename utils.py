@@ -59,12 +59,13 @@ def show_training_info(optimer):
     plt.show()
     
     # accuracy
-    plt.figure()
-    plt.plot(optimer.acc_train_history)
-    plt.plot(optimer.acc_val_history)
-    plt.legend(['Training accuracy', 'Validation accuracy'])
-    plt.title('Accuracy')
-    plt.show()
+    if len(optimer.acc_train_history) > 0 or len(optimer.acc_val_history) > 0:
+        plt.figure()
+        plt.plot(optimer.acc_train_history)
+        plt.plot(optimer.acc_val_history)
+        plt.legend(['Training accuracy', 'Validation accuracy'])
+        plt.title('Accuracy')
+        plt.show()
     
     
 def show_training_infos(optimers, legends=None, contains=['loss', 'train', 'val']):
