@@ -24,7 +24,7 @@ class DataCifar10(DataToy):
         
         if num_train is not None:
             if order_by == 'random':
-                np.random.seed(10)
+#                np.random.seed(10)
                 idxs = np.random.choice(self.x_train.shape[0], num_train + num_val, replace=False)
             else:
                 idxs = np.arange(num_train + num_val)
@@ -34,7 +34,7 @@ class DataCifar10(DataToy):
             
         if num_test is not None:
             if order_by == 'random':
-                np.random.seed(11)
+#                np.random.seed(11)
                 idxs = np.random.choice(self.x_test.shape[0], num_test, replace=False)
             else:
                 idxs = np.arange(num_test)

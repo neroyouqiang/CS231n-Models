@@ -59,10 +59,10 @@ class LSTMCaption(RNNCaption):
         c = np.zeros_like(h)
         for i in range(max_length - 1):
             v, _ = self.layers[self._wembed].forward(caps[:, i], self.params[self._wembed], mode='test')
-            h, c, _ = self.layers[self._rnnlyr].forward_step(v, h, c, self.params[self._rnnlyr])
+            h, c = self.layers[self._rnnlyr].forward_step(v, h, c, self.params[self._rnnlyr])
             s, _ = self.layers[self._linrnn].forward(h, self.params[self._linrnn], mode='test')
             
-            caps[:, i + 1] = np.argmax(s, axis=1, keepdims=True)
+            caps[:, i + 1] = np.argmax(s, axis=1)
             
         # return captions
         return caps

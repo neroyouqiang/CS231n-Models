@@ -102,7 +102,7 @@ class LSTM:
     def forward(self, x, h0, param, mode='train'):
         Wx, Wh, b = param['Wx'], param['Wh'], param['b']
         N, T, D = x.shape
-        N, _, H = h0.shape
+        N, H = h0.shape
         
         h = np.zeros([N, T + 1, H])
         c = np.zeros([N, T + 1, H])
@@ -114,7 +114,7 @@ class LSTM:
         g = np.zeros([N, T, H])
         
         for t in range(0, T, 1):
-            h[:, t + 1, :], c[:, t, :], cache = self._step_forward(x[:, t, :], h[:, t, :], c[:, t, :], Wx, Wh, b)
+            h[:, t + 1, :], c[:, t + 1, :], cache = self._step_forward(x[:, t, :], h[:, t, :], c[:, t, :], Wx, Wh, b)
             i[:, t, :], f[:, t, :], o[:, t, :], g[:, t, :] = cache
         
         return h[:, 1: T + 1, :], (x, h, c, i, f, o, g, Wx, Wh, b)
@@ -122,7 +122,7 @@ class LSTM:
     def backward(self, dh, cache):
         x, h, c, i, f, o, g, Wx, Wh, b = cache
         N, T, D = x.shape
-        N, H = h.shape
+        N, _, H = h.shape
         
         dx = np.zeros([N, T, D])
         dh0 = np.zeros([N, H])
@@ -144,9 +144,10 @@ class LSTM:
     def forward_step(self, x, h0, c0, param):
         Wx, Wh, b = param['Wx'], param['Wh'], param['b']
         
-        h1, c1 = self._step_forward(x, h0, c0, Wx, Wh, b)
+        h1, c1, cache = self._step_forward(x, h0, c0, Wx, Wh, b)
         
         return h1, c1
+    
     
     def _step_forward(self, x, h0, c0, Wx, Wh, b):
         N, D = x.shape
@@ -165,6 +166,8 @@ class LSTM:
         
         c1 = f * c0 + i * g
         h1 = o * np.tanh(c1)
+#        h1 = i + f
+#        c1 = o + g + c0
         
         return h1, c1, (i, f, o, g)
             

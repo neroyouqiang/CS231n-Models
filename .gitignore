@@ -4,3 +4,4 @@
 *.DS_Store
 datasets/cifar-10-batches-py
 datasets/coco_captioning
+saves
