@@ -1,4 +1,5 @@
-from utils import check_accuracy, show_pc_memory
+#from utils import check_accuracy, show_pc_memory
+import mxnet.ndarray as nd
 
                 
 class OptimerSGD:
@@ -55,9 +56,23 @@ class OptimerSGD:
             
             for layer in range(len(model.dparams)):
                 for key in model.dparams[layer].keys():
-                    model.params[layer][key] = self._step(model.params[layer][key], 
-                                                          model.dparams[layer][key],
-                                                          layer, key)
+                    param = model.params[layer][key]
+                    dparam = model.dparams[layer][key]
+                    
+                    # to numpy
+                    if type(param) == nd.ndarray.NDArray: 
+                        param = param.asnumpy()
+                    if type(dparam) == nd.ndarray.NDArray: 
+                        dparam = dparam.asnumpy()
+                    
+                    # modify
+                    param = self._step(param, dparam, layer, key)
+                     
+                    # to ndarray
+                    if type(model.params[layer][key]) == nd.ndarray.NDArray:
+                        param = nd.array(param, model.params[layer][key].context)
+                    
+                    model.params[layer][key] = param
             
             # record loss history
             if i % self.record_every == 0:
@@ -71,7 +86,6 @@ class OptimerSGD:
                 if self.check_train_acc:
                     acc_train = check_accuracy(model.predict(x), y)
                     self.acc_train_history.append(acc_train)
-                    
                     
                 if self.check_val_acc:
                     acc_val = check_accuracy(model.predict(dataloader.x_val), dataloader.y_val)
@@ -87,4 +101,7 @@ class OptimerSGD:
     
     def _step(self, param, dparam, layer, key):
         return param - self.learn_rate * dparam
+    
+    def _step_mx(self, param, dparam, layer, key, device):
+        return self._step(param, dparam, layer, key)
                     

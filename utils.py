@@ -1,4 +1,7 @@
+#import minpy.numpy as np
 import numpy as np
+import mxnet as mx
+import mxnet.ndarray as nd
 import matplotlib.pyplot as plt
 import psutil
 
@@ -11,6 +14,13 @@ def check_accuracy(scores, y):
 
 
 def check_rel_error(m1, m2):
+    if m1 == 0 and m2 == 0:
+        return 0.0
+    
+    if type(m1) == nd.ndarray.NDArray: 
+        m1 = m1.asnumpy()
+    if type(m2) == nd.ndarray.NDArray: 
+        m2 = m2.asnumpy()
     return np.max(np.abs((m1 - m2) / (m1 + m2) * 2.))
 
 
@@ -119,7 +129,7 @@ def show_weight_traces(optimers, legends=None):
     plt.show()
         
         
-def check_gradient(model, x, y, h=0.00001):
+def check_gradient(model, x, y, h=0.1):
     print('Layer | Key | Numerical gradient | Calculated gradient | Relative error')
     for layer in range(len(model.params)):
         for key in model.params[layer]:
@@ -133,21 +143,32 @@ def check_gradient(model, x, y, h=0.00001):
                 seed = np.random.randint(10000)
                 
                 # calculated gradient
-                model.backward(x, y, mode='train', seed=seed)
+                model.backward(x, y, seed=seed)
                 grad_cal = model.dparams[layer][key][idx]
                 
                 # loss +
                 model.params[layer][key][idx] += h
-                loss1 = model.backward(x, y, mode='train', seed=seed)
+                loss1 = model.backward(x, y, seed=seed)
                 
                 # loss -
                 model.params[layer][key][idx] -= 2 * h
-                loss2 = model.backward(x, y, mode='train', seed=seed)
+                loss2 = model.backward(x, y, seed=seed)
                 # recover
                 model.params[layer][key][idx] += h
                 
+                # to numpy
+                if type(grad_cal) == nd.ndarray.NDArray: 
+                    grad_cal = grad_cal.asnumpy()[0]
+                    
+                if type(loss1) == nd.ndarray.NDArray: 
+                    loss1 = loss1.asnumpy()[0]
+                    
+                if type(loss2) == nd.ndarray.NDArray: 
+                    loss2 = loss2.asnumpy()[0]
+                
                 # numerical gradient 
                 grad_num = (loss1 - loss2) / (2 * h)
+#                print(model.params[layer][key][idx], loss1, loss2, grad_cal)
                 
                 # print result
                 print(type(model.layers[layer]), key, grad_num, grad_cal, 

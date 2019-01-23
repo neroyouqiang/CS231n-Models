@@ -1,15 +1,157 @@
+#import minpy.numpy as np
 import numpy as np
+import mxnet as mx
+import mxnet.ndarray as nd
 
-class Linear:
-    def __init__(self, num_input, num_output, init_scale=None):
+class Layer:
+    """
+    Parent layer class. The layer can be used on both CPU and GPU.
+    """
+    def __init__(self, device='cpu'):
+        self.device = device
+            
+    def forward(self, x, param, mode='train'):
+        # Use numpy on CPU
+        if self.device == 'cpu':
+            # to numpy
+            if type(x) == nd.ndarray.NDArray: 
+                x = x.asnumpy()
+                
+            for key in param:
+                if type(param[key]) == nd.ndarray.NDArray: 
+                    param[key]= param[key].asnumpy()
+                
+            # function
+            if mode == 'train':
+                y, cache = self._forward_train(x, param)
+                              
+            elif mode == 'test':
+                y, cache = self._forward_test(x, param)
+            
+        # Use mxnet.ndarray on GPU
+        elif self.device == 'gpu' or self.device == '':
+            if self.device == 'gpu':
+                dvc = mx.gpu()
+            else:
+                dvc = mx.cpu()
+                    
+            # to ndarray
+            if type(x) == np.ndarray: 
+                x = nd.array(x, dvc)
+            
+            for key in param:
+                if type(param[key]) == np.ndarray: 
+                    param[key]= nd.array(param[key], dvc)
+                
+            # function
+            if mode == 'train':
+                y, cache = self._forward_train_mx(x, param, dvc)
+                              
+            elif mode == 'test':
+                y, cache = self._forward_test_mx(x, param, dvc)
+                
+            # to numpy
+            y.wait_to_read()
+#            y = y.asnumpy()
+        
+        return y, cache
+    
+    def backward(self, dy, cache):
+        # Use numpy on CPU
+        if self.device == 'cpu':
+            # to numpy
+            if type(dy) != np.ndarray: dy = dy.asnumpy()
+            
+            # function
+            dx, dparam = self._backward(dy, cache)
+            
+        # Use mxnet.ndarray on GPU
+        elif self.device == 'gpu' or self.device == '':
+            if self.device == 'gpu':
+                dvc = mx.gpu()
+            else:
+                dvc = mx.cpu()
+                    
+            # to ndarray
+            if type(dy) != nd.ndarray.NDArray: dy = nd.array(dy, dvc)
+            
+            # function
+            dx, dparam = self._backward_mx(dy, cache, dvc)
+            
+            # to numpy
+            dx.wait_to_read()
+#            dx = dx.asnumpy()
+            
+        return dx, dparam
+        
+    def get_init_param(self):
+        param = self._get_init_param()
+        
+        if self.device == 'cpu':
+            for key in param:
+                if type(param[key]) == nd.ndarray.NDArray:
+                    param[key] = param[key].asnumpy()
+            
+        elif self.device == 'gpu' or self.device == '':
+            if self.device == 'gpu':
+                dvc = mx.gpu()
+            else:
+                dvc = mx.cpu()
+                
+            for key in param:
+                if type(param[key]) == np.ndarray:
+                    param[key] = nd.array(param[key], dvc)
+        
+        return param
+    
+    def _forward(self, x, param):
+        y = x
+        cache = ()
+        return y, cache
+
+    def _forward_mx(self, x, param, device):
+        y = x
+        cache = ()
+        return y, cache
+
+    def _forward_train(self, x, param):
+        return self._forward(x, param)
+    
+    def _forward_test(self, x, param):
+        return self._forward(x, param)
+    
+    def _forward_train_mx(self, x, param, device):
+        return self._forward_mx(x, param, device)
+    
+    def _forward_test_mx(self, x, param, device):
+        return self._forward_mx(x, param, device)
+    
+    def _backward(self, dy, cache):
+        dx = dy
+        dparam = {}
+        return dx, dparam
+    
+    def _backward_mx(self, dy, cache, device):
+        dx = dy
+        dparam = {}
+        return dx, dparam
+    
+    def _get_init_param(self):
+        param = {}
+        return param
+
+
+class Linear(Layer):
+    def __init__(self, num_input, num_output, init_scale=None, device='cpu'):
         self.num_input = num_input
         self.num_output = num_output
+        self.device = device
         if init_scale:
             self.init_scale = init_scale
         else:
             self.init_scale = 1. / np.sqrt(self.num_input / 2.)
-    
-    def forward(self, x, param, mode='train'):
+
+    def _forward(self, x, param):
         x = x.reshape(x.shape[0], - 1)
         
         W, b = param['W'], param['b']
@@ -18,8 +160,18 @@ class Linear:
         cache = (x, W)
         
         return y, cache
+
+    def _forward_mx(self, x, param, device):
+        x = x.reshape(x.shape[0], - 1)
+        
+        W, b = param['W'], param['b']
+        y = nd.dot(x, W) + b
+        
+        cache = (x, W)
+        
+        return y, cache
     
-    def backward(self, dy, cache):
+    def _backward(self, dy, cache):
         dy = dy.reshape(dy.shape[0], -1)
         
         x, W = cache
@@ -33,7 +185,21 @@ class Linear:
         
         return dx, dparam
     
-    def get_init_param(self):
+    def _backward_mx(self, dy, cache, device):
+        dy = dy.reshape(dy.shape[0], -1)
+        
+        x, W = cache
+        N, D = x.shape
+        
+        db = nd.sum(dy, axis=0)
+        dW = nd.dot(x.T, dy)
+        dx = nd.dot(dy, W.T)
+        
+        dparam = {'W': dW, 'b': db}
+        
+        return dx, dparam
+    
+    def _get_init_param(self):
         W = np.random.randn(self.num_input, self.num_output) * self.init_scale
         b = np.zeros(self.num_output)
         

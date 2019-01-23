@@ -1,4 +1,6 @@
+#import minpy.numpy as np
 import numpy as np
+import mxnet as mx
 import pickle
 import os
 
@@ -10,18 +12,25 @@ from models.losses import Softmax, SVM
 
 
 class MultiLayerNet:
-    def __init__(self, dim_input, dim_output, hyperparams={}, seed=None, params=None):
+    def __init__(self, dim_input, dim_output, hyperparams={}, 
+                 seed=None, params=None, device='cpu'):
         # hyperparameters
         self.hyperparams = hyperparams
         self.dim_input = dim_input
         self.dim_output = dim_output
         self.seed = seed
+        self.device = device
             
         self.hyperparams.setdefault('reg', 0.)
         self.hyperparams.setdefault('init_scale', 1e-4)
             
         self.reg = self.hyperparams['reg']
         self.init_scale = self.hyperparams['init_scale']
+        
+        # random seed
+        if self.seed: 
+            np.random.seed(self.seed)
+            mx.random.seed(self.seed)
             
         # init model
         self.init()
@@ -109,6 +118,7 @@ class MultiLayerNet:
     def save(self, file_name):
         data = {'params': self.params,
                 'info': {'seed': self.seed,
+                         'device': self.device,
                          'dim_input': self.dim_input,
                          'dim_output': self.dim_output,
                          'hyperparams': self.hyperparams}}
@@ -128,10 +138,12 @@ class MultiLayerNet:
         dim_input = data['info']['dim_input']
         dim_output = data['info']['dim_output']
         seed = data['info']['seed']
+        device = data['info']['device']
         params = data['params']
         
         return cls(dim_input, dim_output, 
-                   hyperparams=hyperparams, seed=seed, params=params)
+                   hyperparams=hyperparams, arams=params, 
+                   seed=seed, pdevice=device)
         
     
 if __name__ == '__main__':

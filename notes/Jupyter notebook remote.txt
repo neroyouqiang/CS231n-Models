@@ -1,0 +1,16 @@
+# Jpyter Notebook
+## to remote
+jupyter notebook --generate-config
+
+from notebook.auth import passwd
+passwd()
+# 此时需要输入两次密码（一次设置，一次确认），然后生成sha1的密文，拷贝下来。
+# Enter password: ········
+# Verify password: ········
+# sha1:b11ba7ae862e:6eeb922ef6b770e43a1c90922ba341faaaaaaaa
+
+vi /home/youqiang/.jupyter/jupyter_notebook_config.py
+c.NotebookApp.ip='0.0.0.0' # 允许所有ip访问
+c.NotebookApp.password = u'sha1:...刚才复制的那个密文'
+c.NotebookApp.open_browser = False # 是否打开浏览器
+c.NotebookApp.port = 8888 #指定端口

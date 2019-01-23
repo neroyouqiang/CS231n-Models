@@ -1,4 +1,7 @@
+#import minpy.numpy as np
 import numpy as np
+import mxnet as mx
+import mxnet.ndarray as nd
 
 from optimers.OptimerSGD import OptimerSGD
 
@@ -30,10 +33,21 @@ class OptimerAdam(OptimerSGD):
         self.moment2 = [{} for _ in range(l)]
         self.t = 1
         for layer in range(l):
-            for key in model.params[layer].keys():
+            for key in model.params[layer]:
                 if key not in ['cache', 'info']:
                     self.moment1[layer][key] = np.zeros(model.params[layer][key].shape)
                     self.moment2[layer][key] = np.zeros(model.params[layer][key].shape)
+                    
+#                    if hasattr(model, 'device') and (model.device == 'gpu' or model.device == ''):
+#                        if model.device == 'gpu':
+#                            dvc = mx.gpu()
+#                        else:
+#                            dvc = mx.cpu()
+#                        self.moment1[layer][key] = nd.zeros(model.params[layer][key].shape, dvc)
+#                        self.moment2[layer][key] = nd.zeros(model.params[layer][key].shape, dvc)
+#                    else:
+#                        self.moment1[layer][key] = np.zeros(model.params[layer][key].shape)
+#                        self.moment2[layer][key] = np.zeros(model.params[layer][key].shape)
                 
                 
     def _step(self, param, dparam, layer, key):

@@ -1,3 +1,4 @@
+#import minpy.numpy as np
 import numpy as np
 
 from utils import check_accuracy
