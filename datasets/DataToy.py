@@ -83,7 +83,11 @@ class DataToy:
         """
         if seed: 
             np.random.seed(seed)
+        else:
+            np.random.seed()
+            
         idxs = np.random.choice(self.x_train.shape[0], num, replace=False)
+        
         return self.x_train[idxs], self.y_train[idxs]
     
     def show_info(self):

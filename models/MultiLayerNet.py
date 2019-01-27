@@ -1,8 +1,9 @@
 #import minpy.numpy as np
 import numpy as np
-import mxnet as mx
+import mxnet.ndarray as nd
 import pickle
 import os
+import time
 
 from models.layers import Linear, ReLU, DropOut, BatchNorm
 from models.losses import Softmax, SVM
@@ -28,9 +29,11 @@ class MultiLayerNet:
         self.init_scale = self.hyperparams['init_scale']
         
         # random seed
-        if self.seed: 
+        if self.seed is not None: 
             np.random.seed(self.seed)
-            mx.random.seed(self.seed)
+#            mx.random.seed(self.seed)
+        else:
+            np.random.seed()
             
         # init model
         self.init()
@@ -45,8 +48,6 @@ class MultiLayerNet:
             
         
     def init(self):
-        if self.seed: np.random.seed(self.seed) # seed used to fix the initialization
-        
         self.hyperparams.setdefault('nums_hidden', [])
         self.hyperparams.setdefault('loss_type', 'softmax')
         self.hyperparams.setdefault('dropout', None)
@@ -57,63 +58,106 @@ class MultiLayerNet:
         
         ni = self.dim_input
         for no in self.hyperparams['nums_hidden']:
-            self.layers.append(Linear(ni, no, init_scale=self.init_scale))
-            self.layers.append(ReLU())
+            self.layers.append(Linear(ni, no, init_scale=self.init_scale, device=self.device))
+            self.layers.append(ReLU(device=self.device))
             if self.hyperparams['dropout']:
-                self.layers.append(DropOut(p=self.hyperparams['dropout']))
+                self.layers.append(DropOut(p=self.hyperparams['dropout'], device=self.device))
             if self.hyperparams['batchnorm']:
-                self.layers.append(BatchNorm(no))
+                self.layers.append(BatchNorm(no, device=self.device))
             ni = no
             
-        self.layers.append(Linear(ni, self.dim_output, init_scale=self.init_scale))
+        self.layers.append(Linear(ni, self.dim_output, init_scale=self.init_scale, device=self.device))
         
         # init loss
         if self.hyperparams['loss_type'] == 'softmax':
-            self.loss = Softmax()
+            self.loss = Softmax(device=self.device)
         elif self.hyperparams['loss_type'] == 'svm':
-            self.loss = SVM()
+            self.loss = SVM(device=self.device)
             
     
-    def predict(self, x, mode='test', seed=None):
-        if seed: np.random.seed(seed) # seed used to fix the forward
+    def predict(self, x, mode='test', seed=None, print_time=False):
+        # the random seed
+        if seed is not None: 
+            np.random.seed(seed)
+        else:
+            np.random.seed()
         
         # init caches
         self.caches = [{} for _ in range(len(self.layers))]
         
+        # time recorder
+        tfs = [time.time()]
+        
         # calculate scores
         for i in range(len(self.layers)):
             x, self.caches[i] = self.layers[i].forward(x, self.params[i], mode=mode)
+            tfs.append(time.time())
+        
+        # print running time
+        if print_time: self._print_time_forward(tfs)
             
+        # return
         return x
     
     
-    def backward(self, x, y, mode='train', seed=None):
-        """
-        For test mode, don't calculate gradient.
-        """
+    def backward(self, x, y, mode='train', seed=None, print_time=False):
+        # the random seed
+        if seed is not None: 
+            np.random.seed(seed)
+        else:
+            np.random.seed()
+            
         # calculate loss
-        scores = self.predict(x, mode=mode, seed=seed)
+        scores = self.predict(x, mode=mode, seed=np.random.randint(10000), 
+                              print_time=print_time)
         
         # init dparams
         if mode == 'train': 
             self.dparams = [{} for _ in range(len(self.layers))]
+            
+        # time recorder
+        tbs = [time.time()]
         
         # calculate grediant
         loss, dy = self.loss.backward(scores, y)
+        tbs.append(time.time())
+        
         if mode == 'train': 
             for i in range(len(self.layers) - 1, -1, -1):
                 dy, self.dparams[i] = self.layers[i].backward(dy, self.caches[i])
+                tbs.append(time.time())
+        
+        # time recorder
+        trs = [time.time()]
         
         # regularization
-        for i in range(len(self.params)):
-            if 'W' in self.params[i]:
-                loss += self.reg * np.sum(np.square(self.params[i]['W'])) / 2.
-                if mode == 'train': 
-                    self.dparams[i]['W'] += self.reg * self.params[i]['W']
+        loss, self.dparams = self.loss.add_reg(loss, self.params, self.dparams)
+        trs.append(time.time())
+        
+        # print running time
+        if print_time: self._print_time_backward(tbs, trs)
+        
+        # loss will always be numpy
+        if type(loss) == nd.ndarray.NDArray:
+            loss = loss.asnumpy()[0]
         
         # return 
         return loss
-              
+    
+    
+    def _print_time_forward(self, tfs):
+        print('\nForward time:', tfs[-1] - tfs[0])
+        for i in range(len(self.layers)):
+            print('    ', self.layers[i].__class__.__name__, ':', tfs[i + 1] - tfs[i])
+            
+    
+    def _print_time_backward(self, tbs, trs):
+        print('\nBackward time:', tbs[-1] - tbs[0])
+        for i in range(len(self.layers) - 1, -1, -1):
+            print('    ', self.layers[i].__class__.__name__, ':', tbs[i + 1] - tbs[i])
+        
+        print('\nReg time:', trs[-1] - trs[0])
+        
     
     def save(self, file_name):
         data = {'params': self.params,
@@ -142,8 +186,8 @@ class MultiLayerNet:
         params = data['params']
         
         return cls(dim_input, dim_output, 
-                   hyperparams=hyperparams, arams=params, 
-                   seed=seed, pdevice=device)
+                   hyperparams=hyperparams, params=params, 
+                   seed=seed, device=device)
         
     
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
-#from utils import check_accuracy, show_pc_memory
+from utils import check_accuracy #, show_pc_memory
 import mxnet.ndarray as nd
+import time
 
                 
 class OptimerSGD:
@@ -11,8 +12,8 @@ class OptimerSGD:
                         silence, check_val_acc, check_train_acc)
     
         
-    def train(self, model, dataloader):
-        self._base_train(model, dataloader)
+    def train(self, model, dataloader, print_time=False):
+        self._base_train(model, dataloader, print_time=print_time)
         
     
     def _base_init(self, hyperparams={}, 
@@ -40,7 +41,7 @@ class OptimerSGD:
         self.batch_size = hyperparams['batch_size']
         
         
-    def _base_train(self, model, dataloader):
+    def _base_train(self, model, dataloader, print_time=False):
         # init the records
         self.loss_history = []
         self.acc_train_history = []
@@ -51,36 +52,35 @@ class OptimerSGD:
         
         # for every iteration
         for i in range(self.num_iters):
-            x, y = dataloader.get_batch(self.batch_size)
-            loss = model.backward(x, y)
+            tops = [time.time()]
             
+            # load data
+            x, y = dataloader.get_batch(self.batch_size)
+            tops.append(time.time())
+            
+            # backpropagate
+            loss = model.backward(x, y)
+            tops.append(time.time())
+            
+            # modify parameters
             for layer in range(len(model.dparams)):
                 for key in model.dparams[layer].keys():
                     param = model.params[layer][key]
                     dparam = model.dparams[layer][key]
                     
-                    # to numpy
-                    if type(param) == nd.ndarray.NDArray: 
-                        param = param.asnumpy()
-                    if type(dparam) == nd.ndarray.NDArray: 
-                        dparam = dparam.asnumpy()
-                    
-                    # modify
                     param = self._step(param, dparam, layer, key)
-                     
-                    # to ndarray
-                    if type(model.params[layer][key]) == nd.ndarray.NDArray:
-                        param = nd.array(param, model.params[layer][key].context)
                     
                     model.params[layer][key] = param
+                    
+            tops.append(time.time())
             
             # record loss history
-            if i % self.record_every == 0:
+            if self.record_every is not None and i % self.record_every == 0:
                 self.loss_history.append(loss)
 #                self.param_trace.append(model.params[0]['W'][0, 0: 2])
             
             # print training info
-            if i % self.print_every == 0:
+            if self.print_every is not None and i % self.print_every == 0:
                 if not self.silence: print(i, '/', self.num_iters, 'loss is', loss)
                 
                 if self.check_train_acc:
@@ -97,6 +97,11 @@ class OptimerSGD:
             # check accuracy and decay learning rate.
             if i % iter_per_epoch == 0:
                 self.learn_rate *= self.learn_rate_decay
+                
+            tops.append(time.time())
+            
+            # print running time
+            if print_time: self._print_time(tops)
     
     
     def _step(self, param, dparam, layer, key):
@@ -104,4 +109,18 @@ class OptimerSGD:
     
     def _step_mx(self, param, dparam, layer, key, device):
         return self._step(param, dparam, layer, key)
+    
+    def _model_device(self, model):
+        if hasattr(model, 'device') and (model.device == 'gpu' or model.device == ''):
+            return model.device
+        else:
+            return 'cpu'
+    
+    def _print_time(self, tops):
+        print('Time:', (tops[4] - tops[0]))
+        print('    Load data:', (tops[1] - tops[0]))
+        print('    Backpropagate:', (tops[2] - tops[1]))
+        print('    Modify parameters:', (tops[3] - tops[2]))
+        print('    Others:', (tops[4] - tops[3]))
+        
                     

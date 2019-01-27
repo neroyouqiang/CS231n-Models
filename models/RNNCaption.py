@@ -12,7 +12,8 @@ from models.losses import SoftmaxForRNN
 class RNNCaption(MultiLayerNet):
     """
     Structure:
-        
+        Input - Linear - LSTM - Linear
+         WordEmbedding /
     """
     def init(self):
         assert 'word_to_idx' in self.hyperparams, 'Please input the "word_to_idx" map'
@@ -80,10 +81,11 @@ class RNNCaption(MultiLayerNet):
         """
         Always be 'test' mode
         """
-        # random seed
-        if self.seed: 
-            np.random.seed(self.seed)
-            mx.random.seed(self.seed)
+        # the random seed
+        if seed is not None: 
+            np.random.seed(seed)
+        else:
+            np.random.seed()
         
         max_length = 30
         
@@ -115,61 +117,62 @@ class RNNCaption(MultiLayerNet):
         """
         Always be 'train' mode
         """
-        # random seed
-        if self.seed: 
-            np.random.seed(self.seed)
-            mx.random.seed(self.seed)
+        # the random seed
+        if seed is not None: 
+            np.random.seed(seed)
+        else:
+            np.random.seed()
             
         cap_in = y[:, :-1]
         cap_out = y[:, 1:]
-        tfs = []
-        tbs = []
-        trs = []
+        
+        # time recorder
+        tfs = [time.time()]
         
         # forward
         self.caches = [{} for _ in range(len(self.layers))]
         
-        tfs.append(time.time())
         h0, self.caches[self._linear] = self.layers[self._linear].forward(x, self.params[self._linear], mode='train')
-        
         tfs.append(time.time())
+        
         vs, self.caches[self._wembed] = self.layers[self._wembed].forward(cap_in,  self.params[self._wembed], mode='train')
-        
         tfs.append(time.time())
+        
         hs, self.caches[self._rnnlyr] = self.layers[self._rnnlyr].forward(vs, h0, self.params[self._rnnlyr])
-        
         tfs.append(time.time())
-        ss, self.caches[self._linrnn] = self.layers[self._linrnn].forward(hs, self.params[self._linrnn], mode='train')
         
+        ss, self.caches[self._linrnn] = self.layers[self._linrnn].forward(hs, self.params[self._linrnn], mode='train')
         tfs.append(time.time())
         
         # backward
         self.dparams = [{} for _ in range(len(self.layers))]
         
-        tbs.append(time.time())
+        # time recorder
+        tbs = [time.time()]
+        
         loss, dss = self.loss.backward(ss, cap_out)
-        
         tbs.append(time.time())
+        
         dhs, self.dparams[self._linrnn] = self.layers[self._linrnn].backward(dss, self.caches[self._linrnn])
-           
         tbs.append(time.time()) 
+        
         dvs, dh0, self.dparams[self._rnnlyr] = self.layers[self._rnnlyr].backward(dhs, self.caches[self._rnnlyr])
-           
         tbs.append(time.time()) 
+        
         dcap_in, self.dparams[self._wembed] = self.layers[self._wembed].backward(dvs, self.caches[self._wembed])
-        
         tbs.append(time.time())
+        
         dx, self.dparams[self._linear] = self.layers[self._linear].backward(dh0, self.caches[self._linear])
-        
         tbs.append(time.time())
+        
+        # time recorder
+        trs = [time.time()]
         
         # regularization
-        trs.append(time.time())
         loss, self.dparams = self.loss.add_reg(loss, self.params, self.dparams)
-                
         trs.append(time.time())
         
-        # print time
+        # print running time
         if print_time: self._print_time(tfs, tbs, trs)
         
         # loss will always be numpy

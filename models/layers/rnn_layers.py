@@ -520,18 +520,28 @@ class WordEmbedding(Layer):
         
         dx = dy
         
+        # implement by loop
 #        dW_embed = nd.zeros(W_shape, device)
 #        for n in range(N):
 #            for t in range(T):
 #                dW_embed[x[n, t]] += dy[n, t]
                 
-        x = x.asnumpy().astype(np.int32)
-        dy = dy.asnumpy()
+        # implement by numpy
+#        x = x.asnumpy().astype(np.int32)
+#        dy = dy.asnumpy()
+#        
+#        dW_embed = np.zeros(W_shape)
+#        np.add.at(dW_embed, x, dy)
+#        
+#        dW_embed = nd.array(dW_embed, device)
         
-        dW_embed = np.zeros(W_shape)
-        np.add.at(dW_embed, x, dy)
+#        x = nd.array(x)
+#        dy = nd.array(dy)
         
-        dW_embed = nd.array(dW_embed, device)
+        # implement by one-hot
+        x = nd.one_hot(x.reshape(-1), M)
+        dy = dy.reshape(-1, V)
+        dW_embed = nd.dot(x.T, dy)
         
         dparam = {'W_embed': dW_embed}
         

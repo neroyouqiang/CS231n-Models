@@ -22,9 +22,9 @@ class OptimerAdam(OptimerSGD):
         self.epsilon = hyperparams['epsilon']
         
     
-    def train(self, model, dataloader):
+    def train(self, model, dataloader, print_time=False):
         self._init_scale(model)
-        self._base_train(model, dataloader)
+        self._base_train(model, dataloader, print_time=print_time)
         
     
     def _init_scale(self, model):
@@ -35,19 +35,19 @@ class OptimerAdam(OptimerSGD):
         for layer in range(l):
             for key in model.params[layer]:
                 if key not in ['cache', 'info']:
-                    self.moment1[layer][key] = np.zeros(model.params[layer][key].shape)
-                    self.moment2[layer][key] = np.zeros(model.params[layer][key].shape)
+#                    self.moment1[layer][key] = np.zeros(model.params[layer][key].shape)
+#                    self.moment2[layer][key] = np.zeros(model.params[layer][key].shape)
                     
-#                    if hasattr(model, 'device') and (model.device == 'gpu' or model.device == ''):
-#                        if model.device == 'gpu':
-#                            dvc = mx.gpu()
-#                        else:
-#                            dvc = mx.cpu()
-#                        self.moment1[layer][key] = nd.zeros(model.params[layer][key].shape, dvc)
-#                        self.moment2[layer][key] = nd.zeros(model.params[layer][key].shape, dvc)
-#                    else:
-#                        self.moment1[layer][key] = np.zeros(model.params[layer][key].shape)
-#                        self.moment2[layer][key] = np.zeros(model.params[layer][key].shape)
+                    if self._model_device(model) in ['gpu' , '']:
+                        if model.device == 'gpu':
+                            dvc = mx.gpu()
+                        else:
+                            dvc = mx.cpu()
+                        self.moment1[layer][key] = nd.zeros(model.params[layer][key].shape, dvc)
+                        self.moment2[layer][key] = nd.zeros(model.params[layer][key].shape, dvc)
+                    else:
+                        self.moment1[layer][key] = np.zeros(model.params[layer][key].shape)
+                        self.moment2[layer][key] = np.zeros(model.params[layer][key].shape)
                 
                 
     def _step(self, param, dparam, layer, key):
@@ -56,4 +56,8 @@ class OptimerAdam(OptimerSGD):
         self.mom1_unbias = self.moment1[layer][key] / (1 - self.beta1 ** self.t)
         self.mom2_unbias = self.moment2[layer][key] / (1 - self.beta2 ** self.t)
         self.t += 1
-        return param - self.learn_rate * self.mom1_unbias / (np.sqrt(self.mom2_unbias) + self.epsilon)
+        
+        if type(param) == np.ndarray:
+            return param - self.learn_rate * self.mom1_unbias / (np.sqrt(self.mom2_unbias) + self.epsilon)
+        elif type(param) == nd.ndarray.NDArray:
+            return param - self.learn_rate * self.mom1_unbias / (nd.sqrt(self.mom2_unbias) + self.epsilon)

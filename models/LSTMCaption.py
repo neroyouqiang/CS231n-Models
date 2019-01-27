@@ -6,7 +6,10 @@ from models.losses import SoftmaxForRNN
 class LSTMCaption(RNNCaption):
     """
     Structure:
-        
+        Input - Linear - LSTM - Linear
+         WordEmbedding /
+         
+    Can run on GPU by setting device='gpu'.
     """
     def init(self):
         assert 'word_to_idx' in self.hyperparams, 'Please input the "word_to_idx" map'

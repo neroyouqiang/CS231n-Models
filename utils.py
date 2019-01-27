@@ -9,7 +9,13 @@ def check_accuracy(scores, y):
     """
     Check the accuracy of results
     """
-    num_correct = np.sum(np.argmax(scores, axis=1) == y)
+    if type(scores) == np.ndarray:
+        num_correct = np.sum(np.argmax(scores, axis=1) == y)
+    elif type(scores) == nd.ndarray.NDArray:
+        y = nd.array(y, ctx=scores.context)
+        num_correct = nd.sum(nd.argmax(scores, axis=1) == y)
+        num_correct = num_correct.asnumpy()
+        
     return float(num_correct) / len(y)
 
 
@@ -129,22 +135,34 @@ def show_weight_traces(optimers, legends=None):
     plt.show()
         
         
-def check_gradient(model, x, y, h=0.1):
+def check_gradient(model, x, y, h=0.01):
+    # print title
     print('Layer | Key | Numerical gradient | Calculated gradient | Relative error')
+    
+    # gradient check
     for layer in range(len(model.params)):
         for key in model.params[layer]:
             if key not in ['cache', 'info']:
-                idx = []
-                for d in model.params[layer][key].shape:
-                    idx.append(np.random.randint(d))
-                idx = tuple(idx)
-                
-                # fix the seed
-                seed = np.random.randint(10000)
-                
-                # calculated gradient
-                model.backward(x, y, seed=seed)
-                grad_cal = model.dparams[layer][key][idx]
+                # don't check the 0 gradient
+                while True:
+                    np.random.seed()
+                    
+                    # get index
+                    idx = []
+                    for d in model.params[layer][key].shape:
+                        idx.append(np.random.randint(d))
+                    idx = tuple(idx)
+                    
+                    # fix the seed
+                    seed = np.random.randint(10000)
+                    
+                    # calculated gradient
+                    model.backward(x, y, seed=seed)
+                    grad_cal = model.dparams[layer][key][idx]
+                    
+                    # if the gradient is not 0, then continue
+                    if grad_cal != 0:
+                        break
                 
                 # loss +
                 model.params[layer][key][idx] += h
@@ -171,6 +189,6 @@ def check_gradient(model, x, y, h=0.1):
 #                print(model.params[layer][key][idx], loss1, loss2, grad_cal)
                 
                 # print result
-                print(type(model.layers[layer]), key, grad_num, grad_cal, 
+                print(model.layers[layer].__class__.__name__, key, grad_num, grad_cal, 
                       check_rel_error(grad_num, grad_cal))
     

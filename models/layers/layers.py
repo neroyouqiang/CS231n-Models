@@ -110,9 +110,7 @@ class Layer:
         return y, cache
 
     def _forward_mx(self, x, param, device):
-        y = x
-        cache = ()
-        return y, cache
+        return self._forward(x, param)
 
     def _forward_train(self, x, param):
         return self._forward(x, param)
@@ -132,9 +130,7 @@ class Layer:
         return dx, dparam
     
     def _backward_mx(self, dy, cache, device):
-        dx = dy
-        dparam = {}
-        return dx, dparam
+        return self._backward(dy, cache)
     
     def _get_init_param(self):
         param = {}
@@ -203,17 +199,14 @@ class Linear(Layer):
         W = np.random.randn(self.num_input, self.num_output) * self.init_scale
         b = np.zeros(self.num_output)
         
-        return {'W': W, 'b': b,
-                'info': {'num_input': self.num_input, 
-                         'num_output': self.num_output,
-                         'init_scale': self.init_scale}}
+        return {'W': W, 'b': b}
+#                'info': {'num_input': self.num_input, 
+#                         'num_output': self.num_output,
+#                         'init_scale': self.init_scale}}
 
 
-class ReLU:
-    def __init__(self):
-        pass
-        
-    def forward(self, x, param, mode='train'):
+class ReLU(Layer):
+    def _forward(self, x, param):
         mask = x > 0
         y = np.zeros(x.shape)
         y[mask] = x[mask]
@@ -222,84 +215,170 @@ class ReLU:
         
         return y, cache
     
-    def backward(self, dy, cache):
+    def _forward_mx(self, x, param, device):
+        mask = x > 0
+        y = x * mask
+        
+        cache = (mask)
+        
+        return y, cache
+    
+    def _backward(self, dy, cache):
         mask = cache
         dy = dy.reshape(mask.shape)
-        dx = np.zeros(mask.shape)
+        dx = np.zeros(dy.shape)
         dx[mask] = dy[mask]
         
         return dx, {}
     
-    def get_init_param(self):
-        return {'info': {}}
+    def _backward_mx(self, dy, cache, device):
+        mask = cache
+        dy = dy.reshape(mask.shape)
+        dx = dy * mask
+        
+        return dx, {}
+    
+#    def _get_init_param(self):
+#        return {'info': {}}
 
 
-class DropOut:
-    def __init__(self, p=0.9):
+class DropOut(Layer):
+    def __init__(self, p=0.9, device='cpu'):
         self.p = p
+        self.device = device
         
-    def forward(self, x, param, mode='train'):
-        if mode == 'train':
-            mask = np.random.random(x.shape) < self.p
-            y = x * mask / self.p
+    def _forward_train(self, x, param):
+        mask = np.random.random(x.shape) < self.p
+        y = x * mask / self.p
         
-            cache = (mask, self.p)
-            
-        elif mode == 'test':
-            mask = np.ones(x.shape).astype(np.bool)
-            y = x
+        cache = (mask, self.p)
         
-            cache = (mask, 1)
+        return y, cache
+        
+    def _forward_test(self, x, param):
+        mask = np.ones(x.shape).astype(np.bool)
+        y = x
+        
+        cache = (mask, 1)
+        
+        return y, cache
+        
+    def _forward_train_mx(self, x, param, device):
+        mask = nd.random.uniform(0, 1, shape=x.shape, ctx=device) < self.p
+#        mask = mx.random.random(x.shape) < self.p
+        y = x * mask / self.p
+        
+        cache = (mask, self.p)
+        
+        return y, cache
+        
+    def _forward_test_mx(self, x, param, device):
+        mask = nd.ones(x.shape, device).astype(np.bool)
+        y = x
+        
+        cache = (mask, 1)
         
         return y, cache
     
-    def backward(self, dy, cache):
+    def _backward(self, dy, cache):
         mask, p = cache
         dx = dy * mask / p
         
         return dx, {}
     
-    def get_init_param(self):
-        return {'info': {'p': self.p}}
+    def _backward_mx(self, dy, cache, device):
+        mask, p = cache
+        dx = dy * mask / p
+        
+        return dx, {}
+    
+#    def _get_init_param(self):
+#        return {'info': {'p': self.p}}
 
 
-class BatchNorm:
-    def __init__(self, num_input, momentum=0.9, eps=1e-5):
+class BatchNorm(Layer):
+    def __init__(self, num_input, momentum=0.9, eps=1e-5, device='cpu'):
         self.C = num_input
         self.momentum = momentum
         self.eps = eps
+        self.device = device
         
-    def forward(self, x, param, mode='train'):
-        x_norm, cache = self._forward_mean_var(x, param, mode)
+    def _forward_train(self, x, param):
+        x_norm, cache = self.forward_mean_var(x, param, mode='train')
         mean, var, eps = cache
         
-        y, cache = self._forward_gamma_beta(x_norm, param)
+        y, cache = self.forward_gamma_beta(x_norm, param)
         gamma, beta = cache
         
-        return y, (x, x_norm, mean, var, eps, gamma, beta)
+        cache = (x, x_norm, mean, var, eps, gamma, beta)
+        
+        return y, cache
     
-    def backward(self, dy, cache):
+    def _forward_test(self, x, param):
+        x_norm, cache = self.forward_mean_var(x, param, mode='test')
+        mean, var, eps = cache
+        
+        y, cache = self.forward_gamma_beta(x_norm, param)
+        gamma, beta = cache
+        
+        cache = (x, x_norm, mean, var, eps, gamma, beta)
+        
+        return y, cache
+        
+    def _forward_train_mx(self, x, param, device):
+        x_norm, cache = self.forward_mean_var_mx(x, param, mode='train', device=device)
+        mean, var, eps = cache
+        
+        y, cache = self.forward_gamma_beta_mx(x_norm, param, device)
+        gamma, beta = cache
+        
+        cache = (x, x_norm, mean, var, eps, gamma, beta)
+        
+        return y, cache
+    
+    def _forward_test_mx(self, x, param, device):
+        x_norm, cache = self.forward_mean_var_mx(x, param, mode='test', device=device)
+        mean, var, eps = cache
+        
+        y, cache = self.forward_gamma_beta_mx(x_norm, param, device)
+        gamma, beta = cache
+        
+        cache = (x, x_norm, mean, var, eps, gamma, beta)
+        
+        return y, cache
+    
+    def _backward(self, dy, cache):
         x, x_norm, mean, var, eps, gamma, beta = cache
         N, D = x.shape
         
-        dx_norm, dgamma, dbeta = self._backward_gamma_beta(dy, (x_norm, gamma, beta))
+        dx_norm, dgamma, dbeta = self.backward_gamma_beta(dy, (x_norm, gamma, beta))
         
-        dx = self._backward_mean_var(dx_norm, (x, x_norm, mean, var, eps))
+        dx = self.backward_mean_var(dx_norm, (x, x_norm, mean, var, eps))
+        
+        return dx, {'gamma': dgamma, 'beta': dbeta}
+    
+    def _backward_mx(self, dy, cache, device):
+        x, x_norm, mean, var, eps, gamma, beta = cache
+        N, D = x.shape
+        
+        dx_norm, dgamma, dbeta = self.backward_gamma_beta_mx(dy, (x_norm, gamma, beta), device)
+        
+        dx = self.backward_mean_var_mx(dx_norm, (x, x_norm, mean, var, eps), device)
         
         return dx, {'gamma': dgamma, 'beta': dbeta}
         
-    def get_init_param(self):
+    def _get_init_param(self):
         gamma = np.ones(self.C)
         beta = np.zeros(self.C)
         
         return {'gamma': gamma, 'beta': beta,
                 'cache': {'running_mean': 0, 
-                          'running_var': 0}, 
-                'info': {'momentum': self.momentum, 
-                         'eps': self.eps, 
-                         'C': self.C}}
+                          'running_var': 0}}
+#                'info': {'momentum': self.momentum, 
+#                         'eps': self.eps, 
+#                         'C': self.C}}
     
-    def _forward_mean_var(self, x, param, mode):
+    def forward_mean_var(self, x, param, mode):
         if mode == 'train':
             sample_mean = np.mean(x, axis=0)
             sample_var = np.var(x, axis=0)
@@ -316,11 +395,12 @@ class BatchNorm:
             running_var = param['cache']['running_var']
             
             x_norm = (x - running_mean) / np.sqrt(running_var + self.eps)
+            
             cache = (running_mean, running_var, self.eps)
             
         return x_norm, cache
     
-    def _backward_mean_var(self, dx_norm, cache):
+    def backward_mean_var(self, dx_norm, cache):
         x, x_norm, mean, var, eps = cache
         
         N = x.shape[0]
@@ -331,7 +411,41 @@ class BatchNorm:
         
         return dx
     
-    def _forward_gamma_beta(self, x_norm, param):
+    def forward_mean_var_mx(self, x, param, mode, device):
+        if mode == 'train':
+            sample_mean = nd.mean(x, axis=0)
+            x_no_mean = x - sample_mean
+            sample_var = nd.mean(nd.square(x_no_mean), axis=0)
+            
+            x_norm = x_no_mean / nd.sqrt(sample_var + self.eps)
+            
+            cache = (sample_mean, sample_var, self.eps)
+            
+            param['cache']['running_mean'] = self.momentum * param['cache']['running_mean'] + (1 - self.momentum) * sample_mean
+            param['cache']['running_var'] = self.momentum * param['cache']['running_var'] + (1 - self.momentum) * sample_var
+            
+        elif mode == 'test':
+            running_mean = param['cache']['running_mean']
+            running_var = param['cache']['running_var']
+            
+            x_norm = (x - running_mean) / nd.sqrt(running_var + self.eps)
+            
+            cache = (running_mean, running_var, self.eps)
+            
+        return x_norm, cache
+    
+    def backward_mean_var_mx(self, dx_norm, cache, device):
+        x, x_norm, mean, var, eps = cache
+        
+        N = x.shape[0]
+        
+        dmean = nd.sum(dx_norm * -1.0 / nd.sqrt(var + eps), axis=0)
+        dvar = nd.sum(dx_norm * -0.5 * x_norm / (var + eps), axis=0)
+        dx = dx_norm / nd.sqrt(var + eps) + dmean / N + dvar * (x - mean) * 2.0 / N
+        
+        return dx
+    
+    def forward_gamma_beta(self, x_norm, param):
         gamma = param['gamma']
         beta = param['beta']
         
@@ -341,11 +455,31 @@ class BatchNorm:
         
         return y, cache
     
-    def _backward_gamma_beta(self, dy, cache):
+    def forward_gamma_beta_mx(self, x_norm, param, device):
+        gamma = param['gamma']
+        beta = param['beta']
+        
+        y = x_norm * gamma + beta
+        
+        cache = (gamma, beta)
+        
+        return y, cache
+    
+    def backward_gamma_beta(self, dy, cache):
         x_norm, gamma, beta = cache
         
         dgamma = np.sum(dy * x_norm, axis=0)
         dbeta = np.sum(dy, axis=0)
+        dx_norm = dy * gamma
+        
+        return dx_norm, dgamma, dbeta
+    
+    
+    def backward_gamma_beta_mx(self, dy, cache, device):
+        x_norm, gamma, beta = cache
+        
+        dgamma = nd.sum(dy * x_norm, axis=0)
+        dbeta = nd.sum(dy, axis=0)
         dx_norm = dy * gamma
         
         return dx_norm, dgamma, dbeta

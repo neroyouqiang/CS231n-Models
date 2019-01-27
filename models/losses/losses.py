@@ -72,13 +72,11 @@ class Loss:
         return loss, dscores
     
     def _backward_mx(self, scores, y, dvc):
-        loss = None
-        dscores = None
-        return loss, dscores
+        return self._backward(scores, y)
     
 
-class Softmax:
-    def backward(self, scores, y):
+class Softmax(Loss):
+    def _backward(self, scores, y):
         N = scores.shape[0]
         
         # calculate loss
@@ -95,9 +93,26 @@ class Softmax:
         # return
         return loss, dscores
     
+    def _backward_mx(self, scores, y, device):
+        N = scores.shape[0]
+        
+        # calculate loss
+        probs = scores - nd.max(scores, axis=1, keepdims=True)
+        probs = nd.exp(probs)
+        probs = probs / nd.sum(probs, axis=1, keepdims=True)
+        loss = -nd.sum(nd.log(probs[nd.arange(N, ctx=device), y] + 1e-10)) / N
+        
+        # calculate gradient
+        dscores = probs
+        dscores[nd.arange(N, ctx=device), y] -= 1
+        dscores = dscores / N
+            
+        # return
+        return loss, dscores
     
-class SVM:
-    def backward(self, scores, y):
+    
+class SVM(Loss):
+    def _backward(self, scores, y):
         N = scores.shape[0]
         
         # calculate loss
@@ -115,9 +130,27 @@ class SVM:
         # return
         return loss, dscores
     
+    def _backward_mx(self, scores, y, device):
+        N = scores.shape[0]
+        
+        # calculate loss
+        margins = scores - scores[nd.arange(N, ctx=device), y].reshape(-1, 1) + 1
+        margins[margins < 0] = 0
+        margins[nd.arange(N, ctx=device), y] = 0
+        loss = nd.sum(margins) / N
     
-class MSE:
-    def backward(self, scores, y):
+        # calculate gradient
+        dscores = margins
+        dscores[dscores > 0] = 1.
+        dscores[nd.arange(N, ctx=device), y] = -nd.sum(dscores, axis=1)
+        dscores = dscores / N
+        
+        # return
+        return loss, dscores
+    
+    
+class MSE(Loss):
+    def _backward(self, scores, y):
         N = scores.shape[0]
     
         # calculate gradient
@@ -130,6 +163,23 @@ class MSE:
         
         # calculate loss
         loss = np.sum(dscores) / N / 2.
+        
+        # return
+        return loss, dscores
+    
+    def _backward_mx(self, scores, y, device):
+        N = scores.shape[0]
+    
+        # calculate gradient
+        if scores.shape == y.shape:
+            dscores = scores - y
+        else:
+            dscores[nd.arange(N, ctx=device), y] -= 1
+            
+        dscores = dscores / N
+        
+        # calculate loss
+        loss = nd.sum(dscores) / N / 2.
         
         # return
         return loss, dscores
