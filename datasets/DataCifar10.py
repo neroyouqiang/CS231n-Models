@@ -42,38 +42,66 @@ class DataCifar10(DataToy):
             self.x_test = self.x_test[idxs]
             self.y_test = self.y_test[idxs]
             
-        # normalization and split validation set
-        self._norm_train_val(num_train, num_val, norm_dis_mean, norm_div_std)
+        # split validation set
+        self._split_train_val(num_train, num_val)
+        
+        # normalization
+        self._norm_mean_std(norm_dis_mean, norm_div_std)
         
         # record test/train/val data numbers
         self._record_nums()
     
     
-    def show_by_data(self, x, y=None):
-        x = (x * self.norm_std + self.norm_mean).astype(np.uint8)
+    def show_by_data(self, xs, ys=None, maxflen=5, cmap=None):
+        flen = min(len(xs), maxflen)
         
-        
-        name = None
-        if y:
-            name = self.label_names[y]
-        
-        plt.figure()
-        if len(x.shape) == 2:
-            plt.imshow(x, cmap='gray')
-        elif x.shape[0] == 1:
-            plt.imshow(x.transpose([1, 2, 0])[:, :, 0], cmap='gray')
-        elif x.shape[0] == 3:
-            plt.imshow(x.transpose([1, 2, 0]))
-        else:
-            plt.imshow(x)
+        for i in range(len(xs)):
+            name = None
+            if ys is not None:
+                y = ys[i]
+                name = self.label_names[y]
+                
+            x = xs[i]
             
-        if name:
-            plt.title(name)
+            if cmap != plt.cm.hot:
+                if self.norm_type == 'mean_std':
+                    x = (x * self.norm_std + self.norm_mean).astype(np.uint8)
+                elif self.norm_type == 'max_min':
+                    x = (x * (self.norm_max - self.norm_min) + self.norm_min).astype(np.uint8)
             
-        plt.axis('off')
+            if i % flen == 0:
+                plt.figure()
+                
+            plt.subplot(1, flen, i % flen + 1)
+            
+            if len(x.shape) == 2:
+                if cmap is None: 
+                    cmap = 'gray'
+                plt.imshow(x, cmap=cmap)
+            elif x.shape[0] == 1:
+                if cmap is None: 
+                    cmap = 'gray'
+                plt.imshow(x.transpose([1, 2, 0])[:, :, 0], cmap=cmap)
+            elif x.shape[0] == 3:
+                if cmap is None: 
+                    plt.imshow(x.transpose([1, 2, 0]))
+                else:
+                    plt.imshow(x.transpose([1, 2, 0]), cmap=cmap)
+            else:
+                if cmap is None: 
+                    plt.imshow(x)
+                else:
+                    plt.imshow(x, cmap=cmap)
+                
+            if name:
+                plt.title(name)
+                
+            plt.axis('off')
+            
+        plt.gcf().tight_layout()
         plt.show()
         
-        return x, name
+#        return x, name
             
         
     def show_by_index(self, index, data_type='train'):
@@ -87,7 +115,7 @@ class DataCifar10(DataToy):
             x = (self.x_val[index] * self.norm_std + self.norm_mean).astype(np.uint8)
             y = self.y_val[index]
             
-        return self.show_by_data(x, y)
+        return self.show_by_data([x], [y])
         
     
     @staticmethod

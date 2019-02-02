@@ -47,7 +47,7 @@ class DataCocoFeat(DataToy):
         if num_val is not None:
             if order_by == 'random':
                 np.random.seed(11)
-                idxs = np.random.choice(self.x_train.shape[0], num_val, replace=False)
+                idxs = np.random.choice(self.x_val.shape[0], num_val, replace=False)
             else:
                 idxs = np.arange(num_val)
                 

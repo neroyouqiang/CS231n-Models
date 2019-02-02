@@ -12,22 +12,23 @@ class DataToy:
         self.x_test = np.random.rand(num_test, 1)
         self.y_test = self._func(self.x_test)
         
-        # normalization and split validation set
-        self._norm_train_val(num_train, num_val, norm_dis_mean, norm_div_std)
+        # split validation set
+        self._split_train_val(num_train, num_val)
+        
+        # normalization
+        self._norm_mean_std(norm_dis_mean, norm_div_std)
         
         # record test/train/val data numbers
         self._record_nums()
     
     
-    def _norm_train_val(self, num_train, num_val, norm_dis_mean, norm_div_std):
+    def _split_train_val(self, num_train, num_val):
         """
         Split data into training and validating data.
         Nomalization.
         """
         self.x_val = None
         self.y_val = None
-        self.norm_mean = 0
-        self.norm_std = 1
         
         idxs = np.arange(num_train, num_train + num_val)
         
@@ -37,17 +38,41 @@ class DataToy:
         self.x_train = np.delete(self.x_train, idxs, axis=0)
         self.y_train = np.delete(self.y_train, idxs, axis=0)
         
+    
+    def _norm_mean_std(self, norm_dis_mean=True, norm_div_std=True):
+        self.norm_type = 'mean_std'
+        self.norm_mean = 0
+        self.norm_std = 1
+        
         if norm_dis_mean:
             self.norm_mean = np.mean(self.x_train, axis=0)
-            self.x_train = self.x_train - self.norm_mean
-            self.x_val = self.x_val - self.norm_mean
-            self.x_test = self.x_test - self.norm_mean
+            if self.x_train is not None: 
+                self.x_train = self.x_train - self.norm_mean
+            if self.x_val is not None: 
+                self.x_val = self.x_val - self.norm_mean
+            if self.x_test is not None: 
+                self.x_test = self.x_test - self.norm_mean
             
         if norm_div_std:
             self.norm_std = np.std(self.x_train, axis=0)
-            self.x_train = self.x_train / self.norm_std
-            self.x_val = self.x_val / self.norm_std
-            self.x_test = self.x_test / self.norm_std
+            if self.x_train is not None: 
+                self.x_train = self.x_train / self.norm_std
+            if self.x_val is not None: 
+                self.x_val = self.x_val / self.norm_std
+            if self.x_test is not None: 
+                self.x_test = self.x_test / self.norm_std
+            
+    def _norm_max_min(self):
+        self.norm_type = 'max_min'
+        self.norm_max = self.x_train.max()
+        self.norm_min = self.x_train.min()
+        
+        if self.x_train is not None: 
+            self.x_train = (self.x_train - self.norm_min) / (self.norm_max - self.norm_min) 
+        if self.x_val is not None: 
+            self.x_val = (self.x_val - self.norm_min) / (self.norm_max - self.norm_min) 
+        if self.x_test is not None: 
+            self.x_test = (self.x_test - self.norm_min) / (self.norm_max - self.norm_min) 
             
     
     def _record_nums(self):
