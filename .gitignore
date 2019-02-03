@@ -4,5 +4,6 @@
 *.DS_Store
 datasets/cifar-10-batches-py
 datasets/coco_captioning
+datasets/imagenet_val_25
 saves
 notes
