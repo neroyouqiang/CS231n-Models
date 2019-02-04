@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 
 from datasets.DataToy import DataToy
+#from DataToy import DataToy
 
 class DataCifar10(DataToy):
     def __init__(self, filedir, num_train=None, num_test=None, num_val=0, 
@@ -31,6 +32,8 @@ class DataCifar10(DataToy):
                 
             self.x_train = self.x_train[idxs]
             self.y_train = self.y_train[idxs]
+        else:
+            num_train = self.x_train.shape[0]
             
         if num_test is not None:
             if order_by == 'random':
@@ -41,6 +44,8 @@ class DataCifar10(DataToy):
                 
             self.x_test = self.x_test[idxs]
             self.y_test = self.y_test[idxs]
+        else:
+            num_test = self.x_test.shape[0]
             
         # split validation set
         self._split_train_val(num_train, num_val)
@@ -59,18 +64,23 @@ class DataCifar10(DataToy):
             name = None
             if ys is not None:
                 y = ys[i]
-                name = self.label_names[y]
+                if self.label_names is not None:
+                    name = self.label_names[y]
                 
             x = xs[i]
             
             if cmap != plt.cm.hot:
                 if self.norm_type == 'mean_std':
                     x = (x * self.norm_std + self.norm_mean).astype(np.uint8)
-                elif self.norm_type == 'max_min':
+                elif self.norm_type == 'max_min_0_1':
+                    x = (x * (self.norm_max - self.norm_min) + self.norm_min).astype(np.uint8)
+                elif self.norm_type == 'max_min_-1_1':
+                    x = (x + 1) / 2
                     x = (x * (self.norm_max - self.norm_min) + self.norm_min).astype(np.uint8)
             
             if i % flen == 0:
                 plt.figure()
+                plt.gcf().tight_layout()
                 
             plt.subplot(1, flen, i % flen + 1)
             
@@ -97,8 +107,6 @@ class DataCifar10(DataToy):
                 plt.title(name)
                 
             plt.axis('off')
-            
-        plt.gcf().tight_layout()
         plt.show()
         
 #        return x, name

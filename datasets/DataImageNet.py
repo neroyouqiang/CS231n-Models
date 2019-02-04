@@ -29,6 +29,8 @@ class DataImageNet(DataCifar10):
                 
             self.x_train = self.x_train[idxs]
             self.y_train = self.y_train[idxs]
+        else:
+            num_train = self.x_train.shape[0]
         
         # normalization
         self._norm_max_min()

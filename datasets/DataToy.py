@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 class DataToy:
     def __init__(self, num_train=None, num_test=None, num_val=0, 
@@ -62,17 +63,29 @@ class DataToy:
             if self.x_test is not None: 
                 self.x_test = self.x_test / self.norm_std
             
-    def _norm_max_min(self):
-        self.norm_type = 'max_min'
+    def _norm_max_min(self, m='0_1'):
         self.norm_max = self.x_train.max()
         self.norm_min = self.x_train.min()
-        
+            
         if self.x_train is not None: 
             self.x_train = (self.x_train - self.norm_min) / (self.norm_max - self.norm_min) 
         if self.x_val is not None: 
             self.x_val = (self.x_val - self.norm_min) / (self.norm_max - self.norm_min) 
         if self.x_test is not None: 
-            self.x_test = (self.x_test - self.norm_min) / (self.norm_max - self.norm_min) 
+            self.x_test = (self.x_test - self.norm_min) / (self.norm_max - self.norm_min)
+            
+        if m == '0_1':
+            self.norm_type = 'max_min_0_1' 
+                
+        elif m == '-1_1':
+            self.norm_type = 'max_min_-1_1'
+            
+            if self.x_train is not None: 
+                self.x_train = self.x_train * 2 - 1
+            if self.x_val is not None: 
+                self.x_val = self.x_val * 2 - 1 
+            if self.x_test is not None: 
+                self.x_test = self.x_test * 2 - 1
             
     
     def _record_nums(self):
@@ -114,6 +127,12 @@ class DataToy:
         idxs = np.random.choice(self.x_train.shape[0], num, replace=False)
         
         return self.x_train[idxs], self.y_train[idxs]
+    
+    
+    def get_batch_torch(self, num, dtype=torch.FloatTensor, seed=None):
+        x, y = self.get_batch(num, seed)
+        return torch.tensor(x).type(dtype), torch.tensor(y).type(dtype)
+        
     
     def show_info(self):
         if self.x_train is not None: print('Training data shape: ', self.x_train.shape)
