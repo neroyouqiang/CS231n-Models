@@ -8,7 +8,8 @@ from datasets.DataToy import DataToy
 
 class DataCifar10(DataToy):
     def __init__(self, filedir, num_train=None, num_test=None, num_val=0, 
-                 norm_dis_mean=False, norm_div_std=False, order_by='default'):
+                 norm_dis_mean=False, norm_div_std=False, 
+                 order_by='default', norm_type='mean_std'):
         """
         50000 training data, 10000 testing data
         32*32*3 uint8 for one data, 3kB for one data, 180MB for the whole dataset
@@ -51,7 +52,12 @@ class DataCifar10(DataToy):
         self._split_train_val(num_train, num_val)
         
         # normalization
-        self._norm_mean_std(norm_dis_mean, norm_div_std)
+        if norm_type == 'mean_std':
+            self._norm_mean_std(norm_dis_mean, norm_div_std)
+        if norm_type == 'max_min_0_1':
+            self._norm_max_min(m='0_1')
+        if norm_type == 'max_min_-1_1':
+            self._norm_max_min(m='-1_1')
         
         # record test/train/val data numbers
         self._record_nums()
